@@ -79,7 +79,3 @@ python tischtennis_checker.py
 ## Lizenz
 
 MIT - Frei verwendbar und anpassbar.
-
----
-
-*Erstellt mit Hilfe von [Claude Code](https://claude.ai/claude-code)* 🤖
