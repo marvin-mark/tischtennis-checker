@@ -1,5 +1,7 @@
 name: Tischtennis Checker
 
+# Prüft täglich auf neue Tischtennis-Ergebnisse
+
 on:
   # Zeitplan: Täglich um 10:00 und 18:00 UTC (= 11:00 und 19:00 MEZ)
   schedule:
