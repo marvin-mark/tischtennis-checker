@@ -1,0 +1,16 @@
+# Lokale Konfiguration mit Secrets - NICHT hochladen!
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Windows
+*.bat
+Thumbs.db

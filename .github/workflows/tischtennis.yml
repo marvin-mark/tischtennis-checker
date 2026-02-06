@@ -1,0 +1,47 @@
+name: Tischtennis Checker
+
+on:
+  # Zeitplan: Täglich um 10:00 und 18:00 UTC (= 11:00 und 19:00 MEZ)
+  schedule:
+    - cron: '0 9 * * *'   # 10:00 MEZ (9:00 UTC)
+    - cron: '0 17 * * *'  # 18:00 MEZ (17:00 UTC)
+
+  # Manuell auslösbar
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Abhängigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Cache laden
+        uses: actions/cache@v4
+        with:
+          path: bekannte_spiele.json
+          key: spiele-cache-${{ github.run_id }}
+          restore-keys: |
+            spiele-cache-
+
+      - name: Tischtennis-Checker ausführen
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python tischtennis_checker.py
+
+      - name: Cache speichern
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: bekannte_spiele.json
+          key: spiele-cache-${{ github.run_id }}
