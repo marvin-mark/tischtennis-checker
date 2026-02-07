@@ -17,14 +17,14 @@ Automatische Telegram-Benachrichtigungen für neue Tischtennis-Spielergebnisse d
 
 Der Checker läuft nicht blind rund um die Uhr, sondern entscheidet intelligent:
 
-1. **Abends (18:00-01:00 Wien)** - Cron alle 30 Minuten aktiv
-2. **Smart-Check im Script** - vor jedem HTTP-Request wird geprüft:
+1. **Abends (17:00-00:30 Wien)** - Cron alle 30 Minuten aktiv (Spielzeit)
+2. **Tagsüber (01:00-17:00 Wien)** - Cron alle 2 Stunden (für Ergebnisse die am nächsten Tag eingetragen werden)
+3. **Smart-Check im Script** - vor jedem HTTP-Request wird geprüft:
    - Gibt es ein ausstehendes Spiel, dessen erwartetes Ende erreicht ist? → **Check!**
    - Letzter Spielplan-Abruf > 12 Stunden? → **Refresh!**
    - Sonst → **Skip** (kein HTTP-Request, sofortiger Exit)
-3. **2x täglich Spielplan-Refresh** (06:00 + 12:00 UTC) für neue Ansetzungen/Verschiebungen
 
-**Ergebnis:** Benachrichtigungen kommen weiterhin innerhalb von max. 30 Minuten nach Eintragung, aber der Checker verbraucht deutlich weniger Ressourcen.
+**Ergebnis:** Benachrichtigungen kommen abends innerhalb von max. 30 Minuten, tagsüber innerhalb von max. 2 Stunden - bei 50% weniger Ressourcenverbrauch.
 
 ## Beispiel-Nachricht
 
@@ -86,7 +86,7 @@ python tischtennis_checker.py
 ## Technologie
 
 - **Python 3.11+** mit requests, BeautifulSoup & zoneinfo
-- **GitHub Actions** mit optimiertem Cron-Schedule (abends alle 30 Min, 2x täglich Refresh)
+- **GitHub Actions** mit optimiertem Cron-Schedule (abends alle 30 Min, tagsüber alle 2h)
 - **Telegram Bot API** für Benachrichtigungen
 
 ## Lizenz
