@@ -18,13 +18,12 @@ Automatische Telegram-Benachrichtigungen für neue Tischtennis-Spielergebnisse d
 🏓 Neues Tischtennis-Ergebnis eingetragen!
 
 📅 27.01.2026 20:00
-⚔️ HALT1 vs INZI1
-📊 Ergebnis: 6:2
+⚔️ HALT1 6:2 INZI1
 
 Details:
-👤 Richard Madersbacher vs Bernhard Beiler 3:0
-👤 Josef Felderer vs Uwe Förtsch 3:0
-👥 Weitlaner / Felderer vs Förtsch / Scirtuicchio 3:1
+👤 Max Mustermann 3:0 Erika Musterfrau
+👤 Hans Beispiel 3:0 Otto Normalverbraucher
+👥 Mustermann / Beispiel 3:1 Musterfrau / Normalverbraucher
 ...
 ```
 

@@ -235,11 +235,10 @@ def format_spiel_nachricht(spiel):
     datum_zeit = f"{datum} {zeit}".strip() if zeit else datum
 
     # Basis-Nachricht
-    msg = f"""🏓 <b>Neues Tischtennis-Ergebnis eingetragen!</b>
+    msg = f"""🏓 <b>Neues Spiel eingetragen!</b>
 
 📅 {datum_zeit}
-⚔️ <b>{heim}</b> vs <b>{gast}</b>
-📊 Ergebnis: <b>{ergebnis}</b>
+⚔️ <b>{heim}</b> <b>{ergebnis}</b> <b>{gast}</b>
 """
 
     # Einzelspiele hinzufügen
@@ -247,7 +246,7 @@ def format_spiel_nachricht(spiel):
         msg += "\n<b>Details:</b>\n"
         for es in einzelspiele:
             typ_icon = "👥" if es["typ"] == "Doppel" else "👤"
-            msg += f"{typ_icon} {es['heim']} vs {es['gast']} <b>{es['ergebnis']}</b>\n"
+            msg += f"{typ_icon} {es['heim']} <b>{es['ergebnis']}</b> {es['gast']}\n"
 
     return msg
 
