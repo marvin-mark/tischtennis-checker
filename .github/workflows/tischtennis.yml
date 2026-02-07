@@ -1,11 +1,13 @@
 name: Tischtennis Checker
 
-# Prüft täglich auf neue Tischtennis-Ergebnisse
+# Prüft auf neue Tischtennis-Ergebnisse
 
 on:
-  # Zeitplan: Alle 30 Minuten
   schedule:
-    - cron: '*/30 * * * *'
+    # Abends alle 30 Min (16:00-23:00 UTC = Spielzeit Wien, deckt MEZ+MESZ ab)
+    - cron: '*/30 16-23 * * *'
+    # 2x täglich Spielplan-Refresh (Morgen + Mittag)
+    - cron: '0 6,12 * * *'
 
   # Manuell auslösbar
   workflow_dispatch:

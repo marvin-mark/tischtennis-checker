@@ -2,14 +2,16 @@
 """
 Tischtennis-Spiele Checker
 Prüft auf neue eingetragene Spielergebnisse und sendet Telegram-Benachrichtigungen.
+Enthält Smart-Checking: Checkt nur, wenn ein Ergebnis erwartet wird.
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
@@ -21,6 +23,9 @@ CACHE_FILE = SCRIPT_DIR / "bekannte_spiele.json"
 
 # URL
 BASE_URL = "https://oettv.xttv.at/ed/index.php"
+
+# Timezone
+TZ_VIENNA = ZoneInfo("Europe/Vienna")
 
 
 def load_config():
@@ -58,23 +63,145 @@ def load_config():
 
 
 def load_cache():
-    """Lädt bekannte Spiele aus dem Cache."""
+    """Lädt Cache-Daten inkl. ausstehender Spiele. Abwärtskompatibel mit altem Format."""
+    defaults = {
+        "spiele": [],
+        "ausstehende_spiele": [],
+        "letzter_spielplan_abruf": None,
+        "letzte_aktualisierung": None,
+    }
+
     if not CACHE_FILE.exists():
-        return set()
+        return defaults
 
     with open(CACHE_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    return set(data.get("spiele", []))
+    # Abwärtskompatibilität: alte Felder übernehmen, neue mit Defaults füllen
+    result = dict(defaults)
+    result["spiele"] = data.get("spiele", [])
+    result["ausstehende_spiele"] = data.get("ausstehende_spiele", [])
+    result["letzter_spielplan_abruf"] = data.get("letzter_spielplan_abruf", None)
+    result["letzte_aktualisierung"] = data.get("letzte_aktualisierung", None)
+
+    return result
 
 
-def save_cache(spiele):
-    """Speichert bekannte Spiele im Cache."""
+def save_cache(cache_data):
+    """Speichert das vollständige Cache-Dict."""
+    cache_data["letzte_aktualisierung"] = datetime.now(TZ_VIENNA).isoformat()
     with open(CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump({
-            "spiele": list(spiele),
-            "letzte_aktualisierung": datetime.now().isoformat()
-        }, f, ensure_ascii=False, indent=2)
+        json.dump(cache_data, f, ensure_ascii=False, indent=2)
+
+
+def berechne_erwartetes_ende(datum_str, zeit):
+    """
+    Berechnet, ab wann ein Ergebnis erwartet wird (Spielzeit + 2h Puffer).
+    Keine Uhrzeit bekannt → Annahme 20:00.
+    Gibt ISO-Timestamp mit Timezone zurück.
+    """
+    if not zeit:
+        zeit = "20:00"
+
+    try:
+        spiel_start = datetime.strptime(f"{datum_str} {zeit}", "%d.%m.%Y %H:%M")
+    except ValueError:
+        # Fallback bei unerwartetem Format
+        spiel_start = datetime.strptime(f"{datum_str} 20:00", "%d.%m.%Y %H:%M")
+
+    spiel_start = spiel_start.replace(tzinfo=TZ_VIENNA)
+    erwartetes_ende = spiel_start + timedelta(hours=2)
+    return erwartetes_ende.isoformat()
+
+
+def soll_check_durchgefuehrt_werden(cache_data):
+    """
+    Entscheidet, ob ein HTTP-Check nötig ist.
+    Gibt (bool, grund_text) zurück.
+    """
+    jetzt = datetime.now(TZ_VIENNA)
+
+    # 1. Kein vorheriger Abruf → CHECK (erster Lauf/Migration)
+    letzter_abruf_str = cache_data.get("letzter_spielplan_abruf")
+    if not letzter_abruf_str:
+        return True, "Erster Lauf oder Migration - kein vorheriger Abruf bekannt"
+
+    # 2. Letzter Abruf > 12h → CHECK (Spielplan-Refresh)
+    try:
+        letzter_abruf = datetime.fromisoformat(letzter_abruf_str)
+    except (ValueError, TypeError):
+        return True, "Letzter Abruf-Zeitstempel ungültig"
+
+    if jetzt - letzter_abruf > timedelta(hours=12):
+        return True, f"Spielplan-Refresh fällig (letzter Abruf: {letzter_abruf.strftime('%d.%m. %H:%M')})"
+
+    # 3. Ausstehendes Spiel mit erwartetes_ende <= jetzt → CHECK
+    ausstehende = cache_data.get("ausstehende_spiele", [])
+    for spiel in ausstehende:
+        ende_str = spiel.get("erwartetes_ende")
+        if not ende_str:
+            continue
+        try:
+            erwartetes_ende = datetime.fromisoformat(ende_str)
+        except (ValueError, TypeError):
+            continue
+        if erwartetes_ende <= jetzt:
+            heim = spiel.get("heim", "?")
+            gast = spiel.get("gast", "?")
+            return True, f"Ergebnis erwartet: {heim} vs {gast} (Ende: {erwartetes_ende.strftime('%d.%m. %H:%M')})"
+
+    # 4. Kein Grund zu checken
+    naechstes = None
+    for spiel in ausstehende:
+        ende_str = spiel.get("erwartetes_ende")
+        if not ende_str:
+            continue
+        try:
+            ende = datetime.fromisoformat(ende_str)
+            if naechstes is None or ende < naechstes:
+                naechstes = ende
+        except (ValueError, TypeError):
+            continue
+
+    if naechstes:
+        diff = naechstes - jetzt
+        stunden = int(diff.total_seconds() // 3600)
+        minuten = int((diff.total_seconds() % 3600) // 60)
+        return False, f"Nächstes erwartetes Ergebnis in {stunden}h {minuten}min"
+
+    refresh_in = timedelta(hours=12) - (jetzt - letzter_abruf)
+    stunden = int(refresh_in.total_seconds() // 3600)
+    minuten = int((refresh_in.total_seconds() % 3600) // 60)
+    return False, f"Keine ausstehenden Spiele, nächster Refresh in {stunden}h {minuten}min"
+
+
+def aktualisiere_ausstehende_spiele(cache_data, neue_ausstehende, spiele_mit_ergebnis):
+    """
+    Aktualisiert die Liste ausstehender Spiele im Cache.
+    - Entfernt Spiele die nun ein Ergebnis haben
+    - Fügt neue geplante Spiele hinzu
+    - Wendet SIIM2-Filter an
+    """
+    # IDs der Spiele mit Ergebnis (Heim_vs_Gast_Datum)
+    ergebnis_keys = set()
+    for spiel in spiele_mit_ergebnis:
+        key = f"{spiel['heim']}_vs_{spiel['gast']}_{spiel['datum']}"
+        ergebnis_keys.add(key)
+
+    # Bestehende ausstehende Spiele filtern (entferne die mit Ergebnis)
+    bestehende = cache_data.get("ausstehende_spiele", [])
+    verbleibend = [s for s in bestehende if s.get("spiel_id") not in ergebnis_keys]
+
+    # Neue ausstehende Spiele hinzufügen (nur wenn noch nicht vorhanden)
+    vorhandene_ids = {s.get("spiel_id") for s in verbleibend}
+    for spiel in neue_ausstehende:
+        # SIIM2-Filter
+        if "SIIM2" in spiel.get("heim", "") or "SIIM2" in spiel.get("gast", ""):
+            continue
+        if spiel.get("spiel_id") not in vorhandene_ids:
+            verbleibend.append(spiel)
+
+    cache_data["ausstehende_spiele"] = verbleibend
 
 
 def parse_einzelspiele(gamedetail_text):
@@ -134,11 +261,12 @@ def parse_einzelspiele(gamedetail_text):
 def parse_spielplan_page(html_content):
     """
     Parst die Spielplan-Seite und extrahiert Spiele.
-    Die Seite verwendet <li class="gameSummary"> Elemente.
+    Gibt zwei Listen zurück: (spiele_mit_ergebnis, ausstehende_spiele)
     """
     soup = BeautifulSoup(html_content, "html.parser")
-    spiele = []
-    today = datetime.now().date()
+    spiele_mit_ergebnis = []
+    ausstehende_spiele = []
+    today = datetime.now(TZ_VIENNA).date()
 
     # Suche nach allen gameSummary Einträgen
     game_entries = soup.find_all("li", class_="gameSummary")
@@ -152,50 +280,67 @@ def parse_spielplan_page(html_content):
             continue
         datum_str = datum_match.group(1)
 
-        # Datum parsen und prüfen ob in Vergangenheit oder heute
+        # Datum parsen
         try:
             spiel_datum = datetime.strptime(datum_str, "%d.%m.%Y").date()
         except ValueError:
-            continue
-
-        # Nur Spiele die bereits stattgefunden haben (Datum <= heute)
-        if spiel_datum > today:
             continue
 
         # Extrahiere Uhrzeit
         zeit_match = re.search(r'(\d{2}:\d{2})', text)
         zeit = zeit_match.group(1) if zeit_match else ""
 
-        # Extrahiere Mannschaften und Ergebnis (Format: "HALT1 - INZI1 6:2")
-        match = re.search(r'([A-ZÄÖÜ]{2,6}\d+)\s*-\s*([A-ZÄÖÜ]{2,6}\d+)\s+(\d+):(\d+)', text)
-        if not match:
-            # Kein Ergebnis eingetragen - überspringen!
-            continue
-        heim = match.group(1)
-        gast = match.group(2)
-        ergebnis = f"{match.group(3)}:{match.group(4)}"
+        # Versuche Mannschaften + Ergebnis zu extrahieren (Format: "HALT1 - INZI1 6:2")
+        match_ergebnis = re.search(r'([A-ZÄÖÜ]{2,6}\d+)\s*-\s*([A-ZÄÖÜ]{2,6}\d+)\s+(\d+):(\d+)', text)
 
-        # Extrahiere Einzelspiele aus gamedetail
-        gamedetail = entry.find(class_="gamedetail")
-        einzelspiele = []
-        if gamedetail:
-            gamedetail_text = gamedetail.get_text(separator="|", strip=True)
-            einzelspiele = parse_einzelspiele(gamedetail_text)
+        if match_ergebnis:
+            # Spiel MIT Ergebnis
+            if spiel_datum > today:
+                continue  # Zukunftsspiel mit Ergebnis? Unwahrscheinlich, überspringen
 
-        # Erstelle eindeutige ID (inkl. Ergebnis, damit Änderungen erkannt werden)
-        spiel_id = f"{datum_str}_{heim}_vs_{gast}_{ergebnis}"
+            heim = match_ergebnis.group(1)
+            gast = match_ergebnis.group(2)
+            ergebnis = f"{match_ergebnis.group(3)}:{match_ergebnis.group(4)}"
 
-        spiele.append({
-            "id": spiel_id,
-            "datum": datum_str,
-            "zeit": zeit,
-            "heim": heim,
-            "gast": gast,
-            "ergebnis": ergebnis,
-            "einzelspiele": einzelspiele
-        })
+            # Extrahiere Einzelspiele aus gamedetail
+            gamedetail = entry.find(class_="gamedetail")
+            einzelspiele = []
+            if gamedetail:
+                gamedetail_text = gamedetail.get_text(separator="|", strip=True)
+                einzelspiele = parse_einzelspiele(gamedetail_text)
 
-    return spiele
+            spiel_id = f"{datum_str}_{heim}_vs_{gast}_{ergebnis}"
+
+            spiele_mit_ergebnis.append({
+                "id": spiel_id,
+                "datum": datum_str,
+                "zeit": zeit,
+                "heim": heim,
+                "gast": gast,
+                "ergebnis": ergebnis,
+                "einzelspiele": einzelspiele,
+            })
+        else:
+            # Spiel OHNE Ergebnis → ausstehend
+            match_teams = re.search(r'([A-ZÄÖÜ]{2,6}\d+)\s*-\s*([A-ZÄÖÜ]{2,6}\d+)', text)
+            if not match_teams:
+                continue
+
+            heim = match_teams.group(1)
+            gast = match_teams.group(2)
+            spiel_id = f"{heim}_vs_{gast}_{datum_str}"
+            erwartetes_ende = berechne_erwartetes_ende(datum_str, zeit)
+
+            ausstehende_spiele.append({
+                "datum": datum_str,
+                "zeit": zeit,
+                "heim": heim,
+                "gast": gast,
+                "spiel_id": spiel_id,
+                "erwartetes_ende": erwartetes_ende,
+            })
+
+    return spiele_mit_ergebnis, ausstehende_spiele
 
 
 def filter_spiele(spiele):
@@ -252,17 +397,26 @@ def format_spiel_nachricht(spiel):
 
 
 def main():
-    """Hauptfunktion."""
-    print(f"Tischtennis-Checker gestartet: {datetime.now().isoformat()}")
+    """Hauptfunktion mit Smart-Checking."""
+    print(f"Tischtennis-Checker gestartet: {datetime.now(TZ_VIENNA).isoformat()}")
 
     # Konfiguration laden
     config = load_config()
 
     # Cache laden
-    bekannte_spiele = load_cache()
+    cache_data = load_cache()
+    bekannte_spiele = set(cache_data.get("spiele", []))
     print(f"Bekannte Spiele im Cache: {len(bekannte_spiele)}")
 
-    # Spiele von Webseite abrufen (ohne Datumsfilter um alle Spiele zu sehen)
+    # Smart-Check: Soll überhaupt gecheckt werden?
+    soll_checken, grund = soll_check_durchgefuehrt_werden(cache_data)
+    print(f"Smart-Check: {'JA' if soll_checken else 'NEIN'} - {grund}")
+
+    if not soll_checken:
+        print("Kein Check nötig - beende.")
+        return
+
+    # Spiele von Webseite abrufen
     url = f"{BASE_URL}?lid=8615&do=spiele"
     print(f"Rufe URL ab: {url}")
 
@@ -273,12 +427,16 @@ def main():
         print(f"Fehler beim Abrufen: {e}")
         sys.exit(1)
 
-    # Spiele parsen (nur vergangene mit eingetragenem Ergebnis)
-    alle_spiele = parse_spielplan_page(response.text)
-    print(f"Spiele mit Ergebnis (Datum <= heute): {len(alle_spiele)}")
+    # Spielplan-Abruf-Zeitstempel aktualisieren
+    cache_data["letzter_spielplan_abruf"] = datetime.now(TZ_VIENNA).isoformat()
+
+    # Spiele parsen (zwei Listen)
+    spiele_mit_ergebnis, ausstehende_spiele = parse_spielplan_page(response.text)
+    print(f"Spiele mit Ergebnis: {len(spiele_mit_ergebnis)}")
+    print(f"Ausstehende Spiele (gesamt): {len(ausstehende_spiele)}")
 
     # SIIM2 herausfiltern
-    gefilterte_spiele = filter_spiele(alle_spiele)
+    gefilterte_spiele = filter_spiele(spiele_mit_ergebnis)
     print(f"Nach Filter (ohne SIIM2): {len(gefilterte_spiele)}")
 
     # Neue Spiele finden
@@ -300,14 +458,20 @@ def main():
         else:
             print("  -> Fehler beim Senden!")
 
+    # Ausstehende Spiele aktualisieren
+    aktualisiere_ausstehende_spiele(cache_data, ausstehende_spiele, spiele_mit_ergebnis)
+    ausstehend_count = len(cache_data.get("ausstehende_spiele", []))
+    print(f"Ausstehende Spiele im Cache: {ausstehend_count}")
+
     # Cache speichern
-    save_cache(bekannte_spiele)
-    print(f"Cache aktualisiert: {len(bekannte_spiele)} Spiele")
+    cache_data["spiele"] = list(bekannte_spiele)
+    save_cache(cache_data)
+    print(f"Cache aktualisiert: {len(bekannte_spiele)} bekannte Spiele, {ausstehend_count} ausstehend")
 
     if not neue_spiele:
         print("Keine neuen Ergebnisse gefunden.")
 
-    print(f"Fertig: {datetime.now().isoformat()}")
+    print(f"Fertig: {datetime.now(TZ_VIENNA).isoformat()}")
 
 
 if __name__ == "__main__":
