@@ -1,13 +1,106 @@
 {
   "spiele": [
+    "06.02.2026_JENB1_vs_INZI1_6:1",
+    "26.01.2026_WATT1_vs_WATT2_3:6",
+    "30.01.2026_SCHZ2_vs_KUST4_6:4",
     "03.02.2026_REUT1_vs_HALT1_2:6",
     "02.02.2026_WATT2_vs_KIRB3_1:6",
     "26.01.2026_KIRB3_vs_JENB1_5:5",
-    "05.02.2026_KUST4_vs_WATT1_6:2",
-    "26.01.2026_WATT1_vs_WATT2_3:6",
-    "30.01.2026_SCHZ2_vs_KUST4_6:4",
+    "27.01.2026_HALT1_vs_INZI1_6:2",
     "30.01.2026_REUT1_vs_KIJO1_6:4",
-    "27.01.2026_HALT1_vs_INZI1_6:2"
+    "05.02.2026_KUST4_vs_WATT1_6:2",
+    "06.02.2026_KIJO1_vs_JOHN2_6:3"
   ],
-  "letzte_aktualisierung": "2026-02-06T15:54:07.216850"
+  "ausstehende_spiele": [
+    {
+      "datum": "20.02.2026",
+      "zeit": "20:00",
+      "heim": "JENB1",
+      "gast": "HALT1",
+      "spiel_id": "JENB1_vs_HALT1_20.02.2026",
+      "erwartetes_ende": "2026-02-20T22:00:00+01:00"
+    },
+    {
+      "datum": "17.02.2026",
+      "zeit": "20:00",
+      "heim": "INZI1",
+      "gast": "WATT2",
+      "spiel_id": "INZI1_vs_WATT2_17.02.2026",
+      "erwartetes_ende": "2026-02-17T22:00:00+01:00"
+    },
+    {
+      "datum": "19.02.2026",
+      "zeit": "19:30",
+      "heim": "KIRB3",
+      "gast": "KUST4",
+      "spiel_id": "KIRB3_vs_KUST4_19.02.2026",
+      "erwartetes_ende": "2026-02-19T21:30:00+01:00"
+    },
+    {
+      "datum": "20.02.2026",
+      "zeit": "20:00",
+      "heim": "SCHZ2",
+      "gast": "KIJO1",
+      "spiel_id": "SCHZ2_vs_KIJO1_20.02.2026",
+      "erwartetes_ende": "2026-02-20T22:00:00+01:00"
+    },
+    {
+      "datum": "20.02.2026",
+      "zeit": "20:00",
+      "heim": "JOHN2",
+      "gast": "REUT1",
+      "spiel_id": "JOHN2_vs_REUT1_20.02.2026",
+      "erwartetes_ende": "2026-02-20T22:00:00+01:00"
+    },
+    {
+      "datum": "26.02.2026",
+      "zeit": "20:00",
+      "heim": "JOHN2",
+      "gast": "HALT1",
+      "spiel_id": "JOHN2_vs_HALT1_26.02.2026",
+      "erwartetes_ende": "2026-02-26T22:00:00+01:00"
+    },
+    {
+      "datum": "27.02.2026",
+      "zeit": "19:30",
+      "heim": "REUT1",
+      "gast": "SCHZ2",
+      "spiel_id": "REUT1_vs_SCHZ2_27.02.2026",
+      "erwartetes_ende": "2026-02-27T21:30:00+01:00"
+    },
+    {
+      "datum": "23.02.2026",
+      "zeit": "19:30",
+      "heim": "WATT1",
+      "gast": "KIJO1",
+      "spiel_id": "WATT1_vs_KIJO1_23.02.2026",
+      "erwartetes_ende": "2026-02-23T21:30:00+01:00"
+    },
+    {
+      "datum": "26.02.2026",
+      "zeit": "19:00",
+      "heim": "KUST4",
+      "gast": "INZI1",
+      "spiel_id": "KUST4_vs_INZI1_26.02.2026",
+      "erwartetes_ende": "2026-02-26T21:00:00+01:00"
+    },
+    {
+      "datum": "23.02.2026",
+      "zeit": "19:30",
+      "heim": "WATT2",
+      "gast": "JENB1",
+      "spiel_id": "WATT2_vs_JENB1_23.02.2026",
+      "erwartetes_ende": "2026-02-23T21:30:00+01:00"
+    },
+    {
+      "datum": "03.03.2026",
+      "zeit": "20:00",
+      "heim": "HALT1",
+      "gast": "WATT2",
+      "spiel_id": "HALT1_vs_WATT2_03.03.2026",
+      "erwartetes_ende": "2026-03-03T22:00:00+01:00"
+    }
+  ],
+  "letzter_spielplan_abruf": "2026-02-07T12:25:45.372912+01:00",
+  "letzte_aktualisierung": "2026-02-07T12:25:48.147481+01:00"
 }
