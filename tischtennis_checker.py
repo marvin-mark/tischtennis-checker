@@ -59,24 +59,24 @@ def main():
     gefilterte_spiele = filter_spiele(spiele_mit_ergebnis)
     print(f"Nach Filter (ohne SIIM2): {len(gefilterte_spiele)}")
 
-    # Neue Spiele finden
+    # Neue Spiele finden und Benachrichtigungen senden
     neue_spiele = []
     for spiel in gefilterte_spiele:
         spiel_id = spiel.get("id", "")
         if spiel_id and spiel_id not in bekannte_spiele:
             neue_spiele.append(spiel)
-            bekannte_spiele.add(spiel_id)
 
     print(f"Neue Ergebnisse: {len(neue_spiele)}")
 
-    # Benachrichtigungen senden
+    # Benachrichtigungen senden - nur bei Erfolg als bekannt markieren
     for spiel in neue_spiele:
         nachricht = format_spiel_nachricht(spiel)
         print(f"Sende Benachrichtigung: {spiel.get('heim')} vs {spiel.get('gast')} [{spiel.get('ergebnis')}]")
         if send_telegram_message(config, nachricht):
             print("  -> Erfolgreich gesendet!")
+            bekannte_spiele.add(spiel["id"])
         else:
-            print("  -> Fehler beim Senden!")
+            print("  -> Fehler beim Senden! Wird beim nächsten Lauf erneut versucht.")
 
     # Ausstehende Spiele aktualisieren
     aktualisiere_ausstehende_spiele(cache_data, ausstehende_spiele, spiele_mit_ergebnis)
