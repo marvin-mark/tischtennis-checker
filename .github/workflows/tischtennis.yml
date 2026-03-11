@@ -28,23 +28,16 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pip install -r requirements.txt
 
-      - name: Cache laden
-        uses: actions/cache@v4
-        with:
-          path: bekannte_spiele.json
-          key: spiele-v2-${{ github.run_id }}
-          restore-keys: |
-            spiele-v2-
-
       - name: Tischtennis-Checker ausführen
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python tischtennis_checker.py
 
-      - name: Cache speichern
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: bekannte_spiele.json
-          key: spiele-v2-${{ github.run_id }}
+      - name: Änderungen committen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bekannte_spiele.json
+          git diff --staged --quiet || git commit -m "auto: bekannte_spiele.json aktualisiert"
+          git push
