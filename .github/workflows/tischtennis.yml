@@ -32,9 +32,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: bekannte_spiele.json
-          key: spiele-cache-${{ github.run_id }}
+          key: spiele-v2-${{ github.run_id }}
           restore-keys: |
-            spiele-cache-
+            spiele-v2-
 
       - name: Tischtennis-Checker ausführen
         env:
@@ -47,4 +47,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: bekannte_spiele.json
-          key: spiele-cache-${{ github.run_id }}
+          key: spiele-v2-${{ github.run_id }}
