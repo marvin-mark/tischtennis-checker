@@ -25,23 +25,39 @@ def main():
     bekannte_spiele = set(cache_data.get("spiele", []))
     print(f"Bekannte Spiele: {len(bekannte_spiele)}")
 
-    # Spiele von Webseite abrufen
-    url = f"{BASE_URL}?lid=8615&do=spiele"
-    print(f"Rufe URL ab: {url}")
+    # Spiele von Webseite abrufen (alle Seiten)
+    alle_spiele_mit_ergebnis = []
+    seite = 1
 
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        print(f"Fehler beim Abrufen: {e}")
-        sys.exit(1)
+    while True:
+        url = f"{BASE_URL}?lid=8615&do=spiele&seite={seite}"
+        print(f"Rufe URL ab: {url}")
 
-    # Spiele parsen
-    spiele_mit_ergebnis, _ = parse_spielplan_page(response.text)
-    print(f"Spiele mit Ergebnis: {len(spiele_mit_ergebnis)}")
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"Fehler beim Abrufen von Seite {seite}: {e}")
+            if seite == 1:
+                sys.exit(1)
+            break
+
+        spiele_mit_ergebnis, _ = parse_spielplan_page(response.text)
+        print(f"Seite {seite}: {len(spiele_mit_ergebnis)} Spiele mit Ergebnis")
+
+        if not spiele_mit_ergebnis and seite > 1:
+            break
+
+        alle_spiele_mit_ergebnis.extend(spiele_mit_ergebnis)
+        seite += 1
+
+        if seite > 10:  # Sicherheitslimit
+            break
+
+    print(f"Gesamt Spiele mit Ergebnis: {len(alle_spiele_mit_ergebnis)}")
 
     # SIIM2 herausfiltern
-    gefilterte_spiele = filter_spiele(spiele_mit_ergebnis)
+    gefilterte_spiele = filter_spiele(alle_spiele_mit_ergebnis)
     print(f"Nach Filter (ohne SIIM2): {len(gefilterte_spiele)}")
 
     # Neue Spiele finden
