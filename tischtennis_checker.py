@@ -9,7 +9,7 @@ from datetime import datetime
 
 import requests
 
-from checker.config import BASE_URL, TZ_VIENNA, load_config
+from checker.config import BASE_URL, LEAGUE_ID, TZ_VIENNA, load_config
 from checker.cache import load_cache, save_cache
 from checker.parser import parse_spielplan_page, filter_spiele
 from checker.telegram import send_telegram_message, format_spiel_nachricht
@@ -30,7 +30,7 @@ def main():
     seite = 1
 
     while True:
-        url = f"{BASE_URL}?lid=8615&do=spiele&seite={seite}"
+        url = f"{BASE_URL}?lid={LEAGUE_ID}&do=spiele&seite={seite}"
         print(f"Rufe URL ab: {url}")
 
         try:

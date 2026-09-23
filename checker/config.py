@@ -12,6 +12,8 @@ CONFIG_FILE = SCRIPT_DIR / "config.json"
 
 # URL
 BASE_URL = "https://oettv.xttv.at/ed/index.php"
+# Liga-ID (Saison 2026/27: Landesliga B Grunddurchgang)
+LEAGUE_ID = "8930"
 
 # Timezone
 TZ_VIENNA = ZoneInfo("Europe/Vienna")
