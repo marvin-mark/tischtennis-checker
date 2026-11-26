@@ -4,10 +4,10 @@ name: Tischtennis Checker
 
 on:
   schedule:
-    # Abends alle 30 Min (16:00-23:59 UTC = Spielzeit Wien, deckt MEZ+MESZ ab)
-    - cron: '*/30 16-23 * * *'
-    # Tagsüber alle 2h (für Ergebnisse die am nächsten Tag eingetragen werden)
-    - cron: '0 0,2,4,6,8,10,12,14 * * *'
+    # Abends stündlich (16:17-23:17 UTC = Spielzeit Wien, deckt MEZ+MESZ ab)
+    - cron: '17 16-23 * * *'
+    # Tagsüber alle 3h (für Ergebnisse die am nächsten Tag eingetragen werden)
+    - cron: '17 2,5,8,11,14 * * *'
 
   # Manuell auslösbar
   workflow_dispatch:
@@ -15,16 +15,21 @@ on:
 permissions:
   contents: write
 
+# Nie zwei Läufe gleichzeitig
+concurrency:
+  group: tischtennis-checker
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
 
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Python einrichten
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -38,6 +43,8 @@ jobs:
         run: python tischtennis_checker.py
 
       - name: Änderungen committen
+        # Auch nach einem Fehler: bereits gesendete Spiele sichern, sonst kommen sie doppelt
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
