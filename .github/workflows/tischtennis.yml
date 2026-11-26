@@ -1,21 +1,19 @@
 name: Tischtennis Checker
 
-# Prüft auf neue Tischtennis-Ergebnisse
+# Leitet Ergebnis-Mails des XTTV-Benachrichtigungsdienstes an Telegram weiter
 
 on:
   schedule:
-    # Abends stündlich (16:17-23:17 UTC = Spielzeit Wien, deckt MEZ+MESZ ab)
-    - cron: '17 16-23 * * *'
-    # Tagsüber alle 3h (für Ergebnisse die am nächsten Tag eingetragen werden)
-    - cron: '17 2,5,8,11,14 * * *'
+    # Alle 15 Minuten (liest nur das Gmail-Postfach, nicht die XTTV-Webseite)
+    - cron: '*/15 * * * *'
 
   # Manuell auslösbar
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
-# Nie zwei Läufe gleichzeitig
+# Nie zwei Läufe gleichzeitig (sonst doppelte Nachrichten)
 concurrency:
   group: tischtennis-checker
   cancel-in-progress: false
@@ -36,18 +34,10 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pip install -r requirements.txt
 
-      - name: Tischtennis-Checker ausführen
+      - name: Mails prüfen und an Telegram senden
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python tischtennis_checker.py
-
-      - name: Änderungen committen
-        # Auch nach einem Fehler: bereits gesendete Spiele sichern, sonst kommen sie doppelt
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add bekannte_spiele.json
-          git diff --staged --quiet || git commit -m "auto: bekannte_spiele.json aktualisiert"
-          git push || echo "Push fehlgeschlagen - Cache wird beim nächsten Lauf neu aufgebaut"
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python mail_checker.py
